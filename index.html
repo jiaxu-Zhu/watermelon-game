@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>合成大西瓜 v1.4.0</title>
+    <title>合成大西瓜 v1.5.0</title>
     <style>
         * {
             margin: 0;
@@ -63,16 +63,19 @@
             margin-top: 15px;
             display: flex;
             gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
         }
         .btn {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             border: none;
-            padding: 10px 20px;
+            padding: 12px 24px;
             border-radius: 25px;
-            font-size: 14px;
+            font-size: 16px;
             cursor: pointer;
             transition: transform 0.2s, box-shadow 0.2s;
+            min-width: 120px;
         }
         .btn:hover {
             transform: translateY(-2px);
@@ -87,13 +90,16 @@
             right: 10px;
             background: rgba(255,255,255,0.3);
             border: none;
-            width: 40px;
-            height: 40px;
+            width: 45px;
+            height: 45px;
             border-radius: 50%;
             color: white;
-            font-size: 20px;
+            font-size: 22px;
             cursor: pointer;
             z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
         .modal {
             display: none;
@@ -116,6 +122,8 @@
             border-radius: 15px;
             max-width: 90%;
             width: 400px;
+            max-height: 80vh;
+            overflow-y: auto;
             text-align: center;
         }
         .modal-content h2 {
@@ -151,18 +159,21 @@
             align-items: center;
             justify-content: center;
             font-size: 20px;
+            background: rgba(0,0,0,0.05);
         }
         .game-over {
             position: absolute;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            background: rgba(0,0,0,0.8);
+            background: rgba(0,0,0,0.85);
             color: white;
             padding: 30px;
             border-radius: 15px;
             text-align: center;
             display: none;
+            z-index: 100;
+            min-width: 280px;
         }
         .game-over.show {
             display: block;
@@ -171,9 +182,35 @@
             margin-bottom: 15px;
             font-size: 28px;
         }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin: 15px 0;
+        }
+        .stat-item {
+            background: rgba(255,255,255,0.1);
+            padding: 10px;
+            border-radius: 10px;
+        }
+        .stat-value {
+            font-size: 20px;
+            font-weight: bold;
+            color: #ffd700;
+        }
+        .stat-label {
+            font-size: 12px;
+            color: #aaa;
+            margin-top: 5px;
+        }
         @media (max-width: 400px) {
             .header {
                 max-width: 350px;
+            }
+            .btn {
+                padding: 10px 20px;
+                font-size: 14px;
+                min-width: 100px;
             }
         }
     </style>
@@ -191,8 +228,25 @@
         <canvas id="gameCanvas"></canvas>
         <div class="game-over" id="gameOver">
             <h2>🍉 游戏结束 🍉</h2>
-            <p>最终得分：<span id="finalScore">0</span></p>
-            <button class="btn" style="margin-top: 15px;" onclick="restartGame()">再来一局</button>
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <div class="stat-value" id="finalScore">0</div>
+                    <div class="stat-label">本局得分</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="bestCombo">0</div>
+                    <div class="stat-label">最高连击</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="totalCombos">0</div>
+                    <div class="stat-label">总合并数</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="maxFruits">0</div>
+                    <div class="stat-label">场上最多水果</div>
+                </div>
+            </div>
+            <button class="btn" style="margin-top: 15px;" onclick="restartGame()">🔄 再来一局</button>
         </div>
     </div>
     
@@ -204,12 +258,14 @@
     <div class="modal" id="infoModal">
         <div class="modal-content">
             <h2>🎮 合成大西瓜</h2>
-            <p><strong>版本：</strong>v1.4.0</p>
+            <p><strong>版本：</strong>v1.5.0</p>
             <p><strong>更新时间：</strong>2026-02-27</p>
             
             <h3 style="margin-top: 15px;">📖 游戏规则</h3>
             <ul>
-                <li>拖动水果左右移动，松开投下</li>
+                <li><strong>移动端：</strong>左右拖动水果，松手投下</li>
+                <li><strong>桌面端：</strong>鼠标移动位置，点击投下</li>
+                <li><strong>键盘：</strong>左右箭头移动，空格键投下</li>
                 <li>相同水果碰撞会合成更大的水果</li>
                 <li>连续合并可获得连击加成！</li>
                 <li>目标是合成最大的西瓜🍉</li>
@@ -218,6 +274,7 @@
             
             <h3>🔧 更新日志</h3>
             <ul>
+                <li>v1.5.0：智能优化版本 - 修复边界bug，改进移动端体验，添加统计信息</li>
                 <li>v1.4.0：新增连击系统（连续合并获得额外分数）</li>
                 <li>v1.3.0：彻底修复水果超出画布问题（碰撞后强制边界修正）</li>
                 <li>v1.2.0：修复水果超出画布问题，优化边界检测</li>
@@ -243,10 +300,14 @@
             gravity: 0.5,
             friction: 0.98,
             bounce: 0.3,
-            dangerLine: 100
+            dangerLine: 100,
+            maxParticles: 100,      // 最大粒子数限制
+            maxFloatTexts: 20,      // 最大浮动文字数限制
+            autoSpawnDelay: 500,    // 自动生成延迟（ms）
+            comboTimeout: 3000      // 连击超时时间（ms）
         };
         
-        // 设置画布尺寸
+        // 响应式画布尺寸
         function resizeCanvas() {
             const maxWidth = Math.min(window.innerWidth - 20, 400);
             const scale = maxWidth / config.width;
@@ -256,6 +317,7 @@
             canvas.style.height = maxWidth * (config.height / config.width) + 'px';
         }
         resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
         
         // 水果定义
         const fruits = [
@@ -297,8 +359,38 @@
             comboTimer: null,       // 连击计时器
             totalCombos: 0,         // 总连击次数
             bestCombo: 0,           // 最高连击
-            floatTexts: []          // 浮动文字效果
+            floatTexts: [],         // 浮动文字效果
+            maxFruitsCount: 0,      // 场上最多水果数
+            lastSpawnTime: 0,       // 上次生成时间
+            audioContext: null      // 音频上下文
         };
+        
+        // 初始化音频（用户交互后）
+        function initAudio() {
+            if (!gameState.audioContext) {
+                gameState.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+        
+        // 播放音效
+        function playSound(frequency, duration, type = 'sine') {
+            if (!gameState.audioContext) return;
+            
+            const oscillator = gameState.audioContext.createOscillator();
+            const gainNode = gameState.audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(gameState.audioContext.destination);
+            
+            oscillator.frequency.value = frequency;
+            oscillator.type = type;
+            
+            gainNode.gain.setValueAtTime(0.3, gameState.audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, gameState.audioContext.currentTime + duration);
+            
+            oscillator.start(gameState.audioContext.currentTime);
+            oscillator.stop(gameState.audioContext.currentTime + duration);
+        }
         
         // 浮动文字类
         class FloatText {
@@ -309,20 +401,25 @@
                 this.color = color;
                 this.life = 1;
                 this.vy = -2;
+                this.created = Date.now();
             }
             
             update() {
                 this.y += this.vy;
-                this.life -= 0.02;
+                this.life -= 0.015;
             }
             
             draw() {
-                ctx.globalAlpha = this.life;
+                ctx.globalAlpha = Math.max(0, this.life);
                 ctx.fillStyle = this.color;
                 ctx.font = 'bold 20px Microsoft YaHei';
                 ctx.textAlign = 'center';
                 ctx.fillText(this.text, this.x, this.y);
                 ctx.globalAlpha = 1;
+            }
+            
+            shouldRemove() {
+                return this.life <= 0 || Date.now() - this.created > 2000;
             }
         }
         
@@ -340,7 +437,6 @@
                 comboBox.style.display = 'none';
             }
         }
-        updateDisplay();
         
         // 水果类
         class Fruit {
@@ -351,8 +447,9 @@
                 this.radius = fruits[level].radius;
                 this.vx = 0;
                 this.vy = 0;
-                this.waiting = waiting;  // 是否在等待投下状态（跟随手指）
+                this.waiting = waiting;
                 this.markedForRemoval = false;
+                this.id = Math.random().toString(36).substr(2, 9);
             }
             
             draw() {
@@ -369,38 +466,66 @@
             }
             
             update() {
-                if (!this.waiting) {  // 只有不在等待状态时才应用物理
+                if (!this.waiting) {
                     this.vy += config.gravity;
                     this.vx *= config.friction;
                     this.vy *= config.friction;
                     this.x += this.vx;
                     this.y += this.vy;
                     
-                    // 墙壁碰撞 - 严格限制在画布内
-                    if (this.x - this.radius < 0) {
-                        this.x = this.radius;
-                        this.vx *= -config.bounce;
-                    }
-                    if (this.x + this.radius > config.width) {
-                        this.x = config.width - this.radius;
-                        this.vx *= -config.bounce;
-                    }
+                    // 严格边界限制 - 每帧强制修正
+                    const r = this.radius;
                     
-                    // 底部碰撞 - 严格限制在画布内
-                    if (this.y + this.radius > config.height) {
-                        this.y = config.height - this.radius;
-                        this.vy *= -config.bounce;
-                        if (Math.abs(this.vy) < 0.5) {
-                            this.waiting = true;  // 速度足够小就停止
-                        }
+                    // 左边界
+                    if (this.x - r < 0) {
+                        this.x = r;
+                        this.vx = 0;
                     }
-                    
-                    // 顶部边界保护（防止超出画布）
-                    if (this.y - this.radius < 0) {
-                        this.y = this.radius;
+                    // 右边界
+                    if (this.x + r > config.width) {
+                        this.x = config.width - r;
+                        this.vx = 0;
+                    }
+                    // 上边界
+                    if (this.y - r < 0) {
+                        this.y = r;
                         this.vy = 0;
                     }
+                    // 下边界
+                    if (this.y + r > config.height) {
+                        this.y = config.height - r;
+                        this.vy = 0;
+                        // 速度足够小时停止
+                        if (Math.abs(this.vy) < 0.5) {
+                            this.waiting = true;
+                        }
+                    }
                 }
+            }
+            
+            // 强制位置修正（用于碰撞后）
+            enforceBounds() {
+                const r = this.radius;
+                let corrected = false;
+                
+                if (this.x - r < 0) {
+                    this.x = r;
+                    corrected = true;
+                }
+                if (this.x + r > config.width) {
+                    this.x = config.width - r;
+                    corrected = true;
+                }
+                if (this.y - r < 0) {
+                    this.y = r;
+                    corrected = true;
+                }
+                if (this.y + r > config.height) {
+                    this.y = config.height - r;
+                    corrected = true;
+                }
+                
+                return corrected;
             }
         }
         
@@ -423,12 +548,16 @@
             }
             
             draw() {
-                ctx.globalAlpha = this.life;
+                ctx.globalAlpha = Math.max(0, this.life);
                 ctx.fillStyle = this.color;
                 ctx.beginPath();
                 ctx.arc(this.x, this.y, 5, 0, Math.PI * 2);
                 ctx.fill();
                 ctx.globalAlpha = 1;
+            }
+            
+            shouldRemove() {
+                return this.life <= 0;
             }
         }
         
@@ -458,7 +587,7 @@
                             midX = Math.max(newRadius, Math.min(config.width - newRadius, midX));
                             midY = Math.max(newRadius, Math.min(config.height - newRadius, midY));
                             
-                            // 连击系统
+                            // 连击系统 - 使用防抖计时器
                             gameState.combo++;
                             gameState.totalCombos++;
                             if (gameState.combo > gameState.bestCombo) {
@@ -469,28 +598,44 @@
                             if (gameState.comboTimer) {
                                 clearTimeout(gameState.comboTimer);
                             }
-                            // 设置新的连击计时器（3 秒后重置）
+                            // 设置新的连击计时器
                             gameState.comboTimer = setTimeout(() => {
                                 gameState.combo = 0;
-                            }, 3000);
+                                updateDisplay();
+                            }, config.comboTimeout);
                             
                             // 计算连击加成分数
                             const baseScore = fruits[f1.level].score;
-                            const comboMultiplier = 1 + (gameState.combo - 1) * 0.5;  // 每连击一次增加 50%
+                            const comboMultiplier = 1 + (gameState.combo - 1) * 0.5;
                             const finalScore = Math.floor(baseScore * comboMultiplier);
                             
-                            // 添加粒子效果
-                            for (let k = 0; k < 15; k++) {
-                                gameState.particles.push(new Particle(midX, midY, `hsl(${Math.random() * 360}, 70%, 50%)`));
+                            // 添加粒子效果（限制数量）
+                            if (gameState.particles.length < config.maxParticles) {
+                                for (let k = 0; k < 15; k++) {
+                                    gameState.particles.push(new Particle(midX, midY, `hsl(${Math.random() * 360}, 70%, 50%)`));
+                                }
                             }
                             
-                            // 添加浮动文字
-                            if (gameState.combo >= 2) {
-                                gameState.floatTexts.push(new FloatText(midX, midY - 30, 
-                                    `×${gameState.combo} +${finalScore}`, '#ff6b6b'));
-                            } else {
-                                gameState.floatTexts.push(new FloatText(midX, midY - 30, 
-                                    `+${finalScore}`, '#4ecdc4'));
+                            // 添加浮动文字（限制数量）
+                            if (gameState.floatTexts.length < config.maxFloatTexts) {
+                                if (gameState.combo >= 2) {
+                                    gameState.floatTexts.push(new FloatText(midX, midY - 30, 
+                                        `×${gameState.combo} +${finalScore}`, '#ff6b6b'));
+                                } else {
+                                    gameState.floatTexts.push(new FloatText(midX, midY - 30, 
+                                        `+${finalScore}`, '#4ecdc4'));
+                                }
+                            }
+                            
+                            // 播放音效
+                            if (gameState.audioContext) {
+                                const freq = 300 + f1.level * 100;
+                                playSound(freq, 0.1, 'sine');
+                            }
+                            
+                            // 震动反馈（移动端）
+                            if (navigator.vibrate) {
+                                navigator.vibrate(50);
                             }
                             
                             f1.markedForRemoval = true;
@@ -518,19 +663,26 @@
                                 const ny = dy / distance;
                                 
                                 const overlap = f1.radius + f2.radius - distance;
+                                // 分离重叠的水果
                                 f1.x -= nx * overlap * 0.5;
                                 f1.y -= ny * overlap * 0.5;
                                 f2.x += nx * overlap * 0.5;
                                 f2.y += ny * overlap * 0.5;
                                 
-                                // 使用 waiting 属性代替 isStatic
-                                if (!f1.waiting) {
-                                    f1.vx += nx * 2;
-                                    f1.vy += ny * 2;
-                                }
-                                if (!f2.waiting) {
-                                    f2.vx -= nx * 2;
-                                    f2.vy -= ny * 2;
+                                // 交换速度分量（简化弹性碰撞）
+                                if (!f1.waiting || !f2.waiting) {
+                                    const tempVx = f1.vx;
+                                    const tempVy = f1.vy;
+                                    f1.vx = f2.vx;
+                                    f1.vy = f2.vy;
+                                    f2.vx = tempVx;
+                                    f2.vy = tempVy;
+                                    
+                                    // 添加阻尼
+                                    f1.vx *= 0.8;
+                                    f1.vy *= 0.8;
+                                    f2.vx *= 0.8;
+                                    f2.vy *= 0.8;
                                 }
                             }
                         }
@@ -540,27 +692,7 @@
             
             // 碰撞后强制修正所有水果位置到画布内
             gameState.fruits.forEach(fruit => {
-                const r = fruit.radius;
-                // 左边界
-                if (fruit.x - r < 0) {
-                    fruit.x = r;
-                    fruit.vx = 0;
-                }
-                // 右边界
-                if (fruit.x + r > config.width) {
-                    fruit.x = config.width - r;
-                    fruit.vx = 0;
-                }
-                // 上边界
-                if (fruit.y - r < 0) {
-                    fruit.y = r;
-                    fruit.vy = 0;
-                }
-                // 下边界
-                if (fruit.y + r > config.height) {
-                    fruit.y = config.height - r;
-                    fruit.vy = 0;
-                }
+                fruit.enforceBounds();
             });
         }
         
@@ -579,19 +711,27 @@
             if (gameState.currentFruit || gameState.gameOver) return;
             
             const level = Math.floor(Math.random() * 3); // 前 3 种水果
-            gameState.currentFruit = new Fruit(gameState.mouseX, 50, level, true);  // waiting = true
+            gameState.currentFruit = new Fruit(gameState.mouseX, 50, level, true);
+            gameState.lastSpawnTime = Date.now();
         }
         
         // 投下水果
         function dropFruit() {
             if (gameState.currentFruit && gameState.currentFruit.waiting) {
-                gameState.currentFruit.waiting = false;  // 开始下落
-                gameState.fruits.push(gameState.currentFruit);  // 加入水果列表
+                gameState.currentFruit.waiting = false;
+                gameState.fruits.push(gameState.currentFruit);
                 gameState.currentFruit = null;
+                
+                // 播放投下音效
+                if (gameState.audioContext) {
+                    playSound(200, 0.1, 'square');
+                }
             }
         }
         
         // 鼠标/触摸事件
+        let touchStartY = 0;
+        
         canvas.addEventListener('mousemove', (e) => {
             if (gameState.gameOver) return;
             const rect = canvas.getBoundingClientRect();
@@ -609,12 +749,26 @@
             gameState.mouseX = Math.max(30, Math.min(config.width - 30, gameState.mouseX));
         }, { passive: false });
         
-        canvas.addEventListener('click', () => {
+        // 移动端：触摸拖动并松手投下
+        canvas.addEventListener('touchstart', (e) => {
             if (gameState.gameOver) return;
-            dropFruit();
+            e.preventDefault();
+            touchStartY = e.touches[0].clientY;
+            // 初始化音频（需要用户交互）
+            initAudio();
+        }, { passive: false });
+        
+        canvas.addEventListener('touchend', (e) => {
+            if (gameState.gameOver) return;
+            // 如果是垂直拖动，不投下水果（避免误触）
+            const touchEndY = e.changedTouches[0].clientY;
+            const deltaY = Math.abs(touchEndY - touchStartY);
+            if (deltaY < 30) { // 垂直移动小于30px视为点击/轻触
+                dropFruit();
+            }
         });
         
-        canvas.addEventListener('touchend', () => {
+        canvas.addEventListener('click', () => {
             if (gameState.gameOver) return;
             dropFruit();
         });
@@ -628,6 +782,7 @@
                 gameState.mouseX = Math.min(config.width - 30, gameState.mouseX + 30);
             } else if (e.key === ' ') {
                 dropFruit();
+                e.preventDefault();
             }
         });
         
@@ -649,26 +804,6 @@
             // 更新和绘制所有水果
             gameState.fruits.forEach(fruit => {
                 fruit.update();
-                
-                // 每次更新后强制修正位置到画布内
-                const r = fruit.radius;
-                if (fruit.x - r < 0) {
-                    fruit.x = r;
-                    fruit.vx = 0;
-                }
-                if (fruit.x + r > config.width) {
-                    fruit.x = config.width - r;
-                    fruit.vx = 0;
-                }
-                if (fruit.y - r < 0) {
-                    fruit.y = r;
-                    fruit.vy = 0;
-                }
-                if (fruit.y + r > config.height) {
-                    fruit.y = config.height - r;
-                    fruit.vy = 0;
-                }
-                
                 fruit.draw();
             });
             
@@ -685,31 +820,39 @@
             // 清理被标记的水果
             gameState.fruits = gameState.fruits.filter(f => !f.markedForRemoval);
             
-            // 更新和绘制粒子
-            gameState.particles.forEach((p, i) => {
+            // 更新和绘制粒子（限制数量）
+            gameState.particles = gameState.particles.filter(p => !p.shouldRemove());
+            gameState.particles.forEach(p => {
                 p.update();
                 p.draw();
-                if (p.life <= 0) gameState.particles.splice(i, 1);
             });
             
-            // 更新和绘制浮动文字
-            gameState.floatTexts.forEach((ft, i) => {
+            // 更新和绘制浮动文字（限制数量）
+            gameState.floatTexts = gameState.floatTexts.filter(ft => !ft.shouldRemove());
+            gameState.floatTexts.forEach(ft => {
                 ft.update();
                 ft.draw();
-                if (ft.life <= 0) gameState.floatTexts.splice(i, 1);
             });
             
+            // 更新最大水果数统计
+            if (gameState.fruits.length > gameState.maxFruitsCount) {
+                gameState.maxFruitsCount = gameState.fruits.length;
+            }
+            
             // 检查游戏结束
-            if (checkGameOver()) {
+            if (!gameState.gameOver && checkGameOver()) {
                 gameState.gameOver = true;
                 document.getElementById('finalScore').textContent = gameState.score;
+                document.getElementById('bestCombo').textContent = gameState.bestCombo;
+                document.getElementById('totalCombos').textContent = gameState.totalCombos;
+                document.getElementById('maxFruits').textContent = gameState.maxFruitsCount;
                 document.getElementById('gameOver').classList.add('show');
             }
             
-            // 自动生成新水果（当所有水果都静止时）
+            // 自动生成新水果（当所有水果都静止且没有当前水果时）
             if (!gameState.currentFruit && !gameState.gameOver) {
                 const hasMovingFruit = gameState.fruits.some(f => !f.waiting);
-                if (!hasMovingFruit) {
+                if (!hasMovingFruit && Date.now() - gameState.lastSpawnTime > config.autoSpawnDelay) {
                     spawnFruit();
                 }
             }
@@ -726,6 +869,9 @@
             gameState.particles = [];
             gameState.combo = 0;
             gameState.floatTexts = [];
+            gameState.maxFruitsCount = 0;
+            gameState.totalCombos = 0;
+            gameState.bestCombo = 0;
             if (gameState.comboTimer) {
                 clearTimeout(gameState.comboTimer);
                 gameState.comboTimer = null;
