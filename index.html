@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>合成大西瓜 v1.1.0</title>
+    <title>合成大西瓜 v1.2.0</title>
     <style>
         * {
             margin: 0;
@@ -203,7 +203,7 @@
     <div class="modal" id="infoModal">
         <div class="modal-content">
             <h2>🎮 合成大西瓜</h2>
-            <p><strong>版本：</strong>v1.1.0</p>
+            <p><strong>版本：</strong>v1.2.0</p>
             <p><strong>更新时间：</strong>2026-02-27</p>
             
             <h3 style="margin-top: 15px;">📖 游戏规则</h3>
@@ -216,6 +216,7 @@
             
             <h3>🔧 更新日志</h3>
             <ul>
+                <li>v1.2.0：修复水果超出画布问题，优化边界检测</li>
                 <li>v1.1.0：修复移动端触摸问题，优化水果掉落逻辑</li>
                 <li>v1.0.0：初始版本发布</li>
             </ul>
@@ -331,7 +332,7 @@
                     this.x += this.vx;
                     this.y += this.vy;
                     
-                    // 墙壁碰撞
+                    // 墙壁碰撞 - 严格限制在画布内
                     if (this.x - this.radius < 0) {
                         this.x = this.radius;
                         this.vx *= -config.bounce;
@@ -341,13 +342,19 @@
                         this.vx *= -config.bounce;
                     }
                     
-                    // 底部碰撞
+                    // 底部碰撞 - 严格限制在画布内
                     if (this.y + this.radius > config.height) {
                         this.y = config.height - this.radius;
                         this.vy *= -config.bounce;
                         if (Math.abs(this.vy) < 0.5) {
                             this.waiting = true;  // 速度足够小就停止
                         }
+                    }
+                    
+                    // 顶部边界保护（防止超出画布）
+                    if (this.y - this.radius < 0) {
+                        this.y = this.radius;
+                        this.vy = 0;
                     }
                 }
             }
@@ -399,8 +406,13 @@
                     if (checkCollision(f1, f2)) {
                         // 相同等级合并
                         if (f1.level === f2.level && f1.level < fruits.length - 1) {
-                            const midX = (f1.x + f2.x) / 2;
-                            const midY = (f1.y + f2.y) / 2;
+                            let midX = (f1.x + f2.x) / 2;
+                            let midY = (f1.y + f2.y) / 2;
+                            
+                            // 确保合并后的水果在画布内
+                            const newRadius = fruits[f1.level + 1].radius;
+                            midX = Math.max(newRadius, Math.min(config.width - newRadius, midX));
+                            midY = Math.max(newRadius, Math.min(config.height - newRadius, midY));
                             
                             // 添加粒子效果
                             for (let k = 0; k < 10; k++) {
@@ -412,7 +424,7 @@
                             
                             setTimeout(() => {
                                 gameState.fruits = gameState.fruits.filter(f => !f.markedForRemoval);
-                                gameState.fruits.push(new Fruit(midX, midY, f1.level + 1));
+                                gameState.fruits.push(new Fruit(midX, midY, f1.level + 1, true));
                                 gameState.score += fruits[f1.level].score;
                                 
                                 if (gameState.score > gameState.highScore) {
@@ -437,11 +449,12 @@
                                 f2.x += nx * overlap * 0.5;
                                 f2.y += ny * overlap * 0.5;
                                 
-                                if (!f1.isStatic) {
+                                // 使用 waiting 属性代替 isStatic
+                                if (!f1.waiting) {
                                     f1.vx += nx * 2;
                                     f1.vy += ny * 2;
                                 }
-                                if (!f2.isStatic) {
+                                if (!f2.waiting) {
                                     f2.vx -= nx * 2;
                                     f2.vy -= ny * 2;
                                 }
