@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>合成大西瓜 v1.3.0</title>
+    <title>合成大西瓜 v1.4.0</title>
     <style>
         * {
             margin: 0;
@@ -183,6 +183,7 @@
     
     <div class="header">
         <div class="score-box">分数：<span id="score">0</span></div>
+        <div class="score-box" id="comboBox" style="display:none;">连击：<span id="combo">0</span>×</div>
         <div class="score-box">最高分：<span id="highScore">0</span></div>
     </div>
     
@@ -203,19 +204,21 @@
     <div class="modal" id="infoModal">
         <div class="modal-content">
             <h2>🎮 合成大西瓜</h2>
-            <p><strong>版本：</strong>v1.3.0</p>
+            <p><strong>版本：</strong>v1.4.0</p>
             <p><strong>更新时间：</strong>2026-02-27</p>
             
             <h3 style="margin-top: 15px;">📖 游戏规则</h3>
             <ul>
                 <li>拖动水果左右移动，松开投下</li>
                 <li>相同水果碰撞会合成更大的水果</li>
+                <li>连续合并可获得连击加成！</li>
                 <li>目标是合成最大的西瓜🍉</li>
                 <li>水果堆到红线以上游戏结束</li>
             </ul>
             
             <h3>🔧 更新日志</h3>
             <ul>
+                <li>v1.4.0：新增连击系统（连续合并获得额外分数）</li>
                 <li>v1.3.0：彻底修复水果超出画布问题（碰撞后强制边界修正）</li>
                 <li>v1.2.0：修复水果超出画布问题，优化边界检测</li>
                 <li>v1.1.0：修复移动端触摸问题，优化水果掉落逻辑</li>
@@ -289,13 +292,53 @@
             score: 0,
             highScore: parseInt(localStorage.getItem('watermelonHighScore')) || 0,
             gameOver: false,
-            particles: []
+            particles: [],
+            combo: 0,              // 连击计数
+            comboTimer: null,       // 连击计时器
+            totalCombos: 0,         // 总连击次数
+            bestCombo: 0,           // 最高连击
+            floatTexts: []          // 浮动文字效果
         };
+        
+        // 浮动文字类
+        class FloatText {
+            constructor(x, y, text, color) {
+                this.x = x;
+                this.y = y;
+                this.text = text;
+                this.color = color;
+                this.life = 1;
+                this.vy = -2;
+            }
+            
+            update() {
+                this.y += this.vy;
+                this.life -= 0.02;
+            }
+            
+            draw() {
+                ctx.globalAlpha = this.life;
+                ctx.fillStyle = this.color;
+                ctx.font = 'bold 20px Microsoft YaHei';
+                ctx.textAlign = 'center';
+                ctx.fillText(this.text, this.x, this.y);
+                ctx.globalAlpha = 1;
+            }
+        }
         
         // 更新显示
         function updateDisplay() {
             document.getElementById('score').textContent = gameState.score;
             document.getElementById('highScore').textContent = gameState.highScore;
+            
+            // 更新连击显示
+            const comboBox = document.getElementById('comboBox');
+            if (gameState.combo >= 2) {
+                comboBox.style.display = 'block';
+                document.getElementById('combo').textContent = gameState.combo;
+            } else {
+                comboBox.style.display = 'none';
+            }
         }
         updateDisplay();
         
@@ -415,9 +458,39 @@
                             midX = Math.max(newRadius, Math.min(config.width - newRadius, midX));
                             midY = Math.max(newRadius, Math.min(config.height - newRadius, midY));
                             
+                            // 连击系统
+                            gameState.combo++;
+                            gameState.totalCombos++;
+                            if (gameState.combo > gameState.bestCombo) {
+                                gameState.bestCombo = gameState.combo;
+                            }
+                            
+                            // 清除之前的连击计时器
+                            if (gameState.comboTimer) {
+                                clearTimeout(gameState.comboTimer);
+                            }
+                            // 设置新的连击计时器（3 秒后重置）
+                            gameState.comboTimer = setTimeout(() => {
+                                gameState.combo = 0;
+                            }, 3000);
+                            
+                            // 计算连击加成分数
+                            const baseScore = fruits[f1.level].score;
+                            const comboMultiplier = 1 + (gameState.combo - 1) * 0.5;  // 每连击一次增加 50%
+                            const finalScore = Math.floor(baseScore * comboMultiplier);
+                            
                             // 添加粒子效果
-                            for (let k = 0; k < 10; k++) {
+                            for (let k = 0; k < 15; k++) {
                                 gameState.particles.push(new Particle(midX, midY, `hsl(${Math.random() * 360}, 70%, 50%)`));
+                            }
+                            
+                            // 添加浮动文字
+                            if (gameState.combo >= 2) {
+                                gameState.floatTexts.push(new FloatText(midX, midY - 30, 
+                                    `×${gameState.combo} +${finalScore}`, '#ff6b6b'));
+                            } else {
+                                gameState.floatTexts.push(new FloatText(midX, midY - 30, 
+                                    `+${finalScore}`, '#4ecdc4'));
                             }
                             
                             f1.markedForRemoval = true;
@@ -426,7 +499,7 @@
                             setTimeout(() => {
                                 gameState.fruits = gameState.fruits.filter(f => !f.markedForRemoval);
                                 gameState.fruits.push(new Fruit(midX, midY, f1.level + 1, true));
-                                gameState.score += fruits[f1.level].score;
+                                gameState.score += finalScore;
                                 
                                 if (gameState.score > gameState.highScore) {
                                     gameState.highScore = gameState.score;
@@ -619,6 +692,13 @@
                 if (p.life <= 0) gameState.particles.splice(i, 1);
             });
             
+            // 更新和绘制浮动文字
+            gameState.floatTexts.forEach((ft, i) => {
+                ft.update();
+                ft.draw();
+                if (ft.life <= 0) gameState.floatTexts.splice(i, 1);
+            });
+            
             // 检查游戏结束
             if (checkGameOver()) {
                 gameState.gameOver = true;
@@ -644,6 +724,12 @@
             gameState.score = 0;
             gameState.gameOver = false;
             gameState.particles = [];
+            gameState.combo = 0;
+            gameState.floatTexts = [];
+            if (gameState.comboTimer) {
+                clearTimeout(gameState.comboTimer);
+                gameState.comboTimer = null;
+            }
             document.getElementById('gameOver').classList.remove('show');
             updateDisplay();
             spawnFruit();
