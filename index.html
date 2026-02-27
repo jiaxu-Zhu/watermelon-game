@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>合成大西瓜 v1.0.0</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            touch-action: none;
+        }
+        body {
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 10px;
+            overflow: hidden;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            max-width: 400px;
+            padding: 10px 0;
+            color: white;
+        }
+        .score-box {
+            background: rgba(255,255,255,0.2);
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 14px;
+        }
+        .score-box span {
+            font-weight: bold;
+            font-size: 18px;
+        }
+        .game-container {
+            position: relative;
+            background: linear-gradient(180deg, #f0e6d3 0%, #d4c5a9 100%);
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        #gameCanvas {
+            display: block;
+            border-radius: 10px;
+        }
+        .fruit-preview {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            pointer-events: none;
+            opacity: 0.7;
+        }
+        .controls {
+            margin-top: 15px;
+            display: flex;
+            gap: 10px;
+        }
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 25px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+        .btn:active {
+            transform: translateY(0);
+        }
+        .info-btn {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: rgba(255,255,255,0.3);
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            z-index: 100;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal.show {
+            display: flex;
+        }
+        .modal-content {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            max-width: 90%;
+            width: 400px;
+            text-align: center;
+        }
+        .modal-content h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+        .modal-content ul {
+            text-align: left;
+            margin: 15px 0;
+            padding-left: 20px;
+            color: #555;
+        }
+        .modal-content li {
+            margin: 8px 0;
+        }
+        .fruit-list {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin: 15px 0;
+        }
+        .fruit-item {
+            text-align: center;
+            font-size: 12px;
+            color: #555;
+        }
+        .fruit-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            margin: 0 auto 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+        .game-over {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            display: none;
+        }
+        .game-over.show {
+            display: block;
+        }
+        .game-over h2 {
+            margin-bottom: 15px;
+            font-size: 28px;
+        }
+        @media (max-width: 400px) {
+            .header {
+                max-width: 350px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <button class="info-btn" onclick="showInfo()">ℹ️</button>
+    
+    <div class="header">
+        <div class="score-box">分数：<span id="score">0</span></div>
+        <div class="score-box">最高分：<span id="highScore">0</span></div>
+    </div>
+    
+    <div class="game-container">
+        <canvas id="gameCanvas"></canvas>
+        <div class="game-over" id="gameOver">
+            <h2>🍉 游戏结束 🍉</h2>
+            <p>最终得分：<span id="finalScore">0</span></p>
+            <button class="btn" style="margin-top: 15px;" onclick="restartGame()">再来一局</button>
+        </div>
+    </div>
+    
+    <div class="controls">
+        <button class="btn" onclick="dropFruit()">📍 投下</button>
+        <button class="btn" onclick="restartGame()">🔄 重新开始</button>
+    </div>
+    
+    <div class="modal" id="infoModal">
+        <div class="modal-content">
+            <h2>🎮 合成大西瓜</h2>
+            <p><strong>版本：</strong>v1.0.0</p>
+            <p><strong>更新时间：</strong>2026-02-27</p>
+            
+            <h3 style="margin-top: 15px;">📖 游戏规则</h3>
+            <ul>
+                <li>拖动水果左右移动，松开投下</li>
+                <li>相同水果碰撞会合成更大的水果</li>
+                <li>目标是合成最大的西瓜🍉</li>
+                <li>水果堆到红线以上游戏结束</li>
+            </ul>
+            
+            <h3>🍇 水果等级</h3>
+            <div class="fruit-list" id="fruitList"></div>
+            
+            <button class="btn" onclick="hideInfo()">关闭</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // 游戏配置
+        const config = {
+            width: 360,
+            height: 600,
+            gravity: 0.5,
+            friction: 0.98,
+            bounce: 0.3,
+            dangerLine: 100
+        };
+        
+        // 设置画布尺寸
+        function resizeCanvas() {
+            const maxWidth = Math.min(window.innerWidth - 20, 400);
+            const scale = maxWidth / config.width;
+            canvas.width = config.width;
+            canvas.height = config.height;
+            canvas.style.width = maxWidth + 'px';
+            canvas.style.height = maxWidth * (config.height / config.width) + 'px';
+        }
+        resizeCanvas();
+        
+        // 水果定义
+        const fruits = [
+            { name: '葡萄', emoji: '🍇', radius: 20, score: 2 },
+            { name: '樱桃', emoji: '🍒', radius: 25, score: 4 },
+            { name: '柠檬', emoji: '🍋', radius: 30, score: 8 },
+            { name: '橘子', emoji: '🍊', radius: 35, score: 16 },
+            { name: '柿子', emoji: '🟠', radius: 40, score: 32 },
+            { name: '椰子', emoji: '🥥', radius: 45, score: 64 },
+            { name: '桃子', emoji: '🍑', radius: 50, score: 128 },
+            { name: '菠萝', emoji: '🍍', radius: 55, score: 256 },
+            { name: '石头', emoji: '🪨', radius: 60, score: 512 },
+            { name: '甜瓜', emoji: '🍈', radius: 65, score: 1024 },
+            { name: '西瓜', emoji: '🍉', radius: 70, score: 2048 }
+        ];
+        
+        // 填充水果列表
+        const fruitList = document.getElementById('fruitList');
+        fruits.forEach((f, i) => {
+            fruitList.innerHTML += `
+                <div class="fruit-item">
+                    <div class="fruit-icon">${f.emoji}</div>
+                    <div>${f.name}</div>
+                </div>
+            `;
+        });
+        
+        // 游戏状态
+        let gameState = {
+            fruits: [],
+            currentFruit: null,
+            mouseX: config.width / 2,
+            isDragging: false,
+            score: 0,
+            highScore: parseInt(localStorage.getItem('watermelonHighScore')) || 0,
+            gameOver: false,
+            particles: []
+        };
+        
+        // 更新显示
+        function updateDisplay() {
+            document.getElementById('score').textContent = gameState.score;
+            document.getElementById('highScore').textContent = gameState.highScore;
+        }
+        updateDisplay();
+        
+        // 水果类
+        class Fruit {
+            constructor(x, y, level, isStatic = true) {
+                this.x = x;
+                this.y = y;
+                this.level = level;
+                this.radius = fruits[level].radius;
+                this.vx = 0;
+                this.vy = 0;
+                this.isStatic = isStatic;
+                this.markedForRemoval = false;
+            }
+            
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = '#fff';
+                ctx.fill();
+                ctx.closePath();
+                
+                ctx.font = `${this.radius}px Arial`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(fruits[this.level].emoji, this.x, this.y + this.radius * 0.1);
+            }
+            
+            update() {
+                if (!this.isStatic) {
+                    this.vy += config.gravity;
+                    this.vx *= config.friction;
+                    this.vy *= config.friction;
+                    this.x += this.vx;
+                    this.y += this.vy;
+                    
+                    // 墙壁碰撞
+                    if (this.x - this.radius < 0) {
+                        this.x = this.radius;
+                        this.vx *= -config.bounce;
+                    }
+                    if (this.x + this.radius > config.width) {
+                        this.x = config.width - this.radius;
+                        this.vx *= -config.bounce;
+                    }
+                    
+                    // 底部碰撞
+                    if (this.y + this.radius > config.height) {
+                        this.y = config.height - this.radius;
+                        this.vy *= -config.bounce;
+                        if (Math.abs(this.vy) < 1) {
+                            this.isStatic = true;
+                        }
+                    }
+                }
+            }
+        }
+        
+        // 粒子效果
+        class Particle {
+            constructor(x, y, color) {
+                this.x = x;
+                this.y = y;
+                this.vx = (Math.random() - 0.5) * 10;
+                this.vy = (Math.random() - 0.5) * 10;
+                this.life = 1;
+                this.color = color;
+            }
+            
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.vy += 0.2;
+                this.life -= 0.02;
+            }
+            
+            draw() {
+                ctx.globalAlpha = this.life;
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, 5, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.globalAlpha = 1;
+            }
+        }
+        
+        // 碰撞检测
+        function checkCollision(f1, f2) {
+            const dx = f2.x - f1.x;
+            const dy = f2.y - f1.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            return distance < f1.radius + f2.radius;
+        }
+        
+        // 处理碰撞
+        function handleCollisions() {
+            for (let i = 0; i < gameState.fruits.length; i++) {
+                for (let j = i + 1; j < gameState.fruits.length; j++) {
+                    const f1 = gameState.fruits[i];
+                    const f2 = gameState.fruits[j];
+                    
+                    if (checkCollision(f1, f2)) {
+                        // 相同等级合并
+                        if (f1.level === f2.level && f1.level < fruits.length - 1) {
+                            const midX = (f1.x + f2.x) / 2;
+                            const midY = (f1.y + f2.y) / 2;
+                            
+                            // 添加粒子效果
+                            for (let k = 0; k < 10; k++) {
+                                gameState.particles.push(new Particle(midX, midY, `hsl(${Math.random() * 360}, 70%, 50%)`));
+                            }
+                            
+                            f1.markedForRemoval = true;
+                            f2.markedForRemoval = true;
+                            
+                            setTimeout(() => {
+                                gameState.fruits = gameState.fruits.filter(f => !f.markedForRemoval);
+                                gameState.fruits.push(new Fruit(midX, midY, f1.level + 1));
+                                gameState.score += fruits[f1.level].score;
+                                
+                                if (gameState.score > gameState.highScore) {
+                                    gameState.highScore = gameState.score;
+                                    localStorage.setItem('watermelonHighScore', gameState.highScore);
+                                }
+                                updateDisplay();
+                            }, 50);
+                        } else {
+                            // 物理反弹
+                            const dx = f2.x - f1.x;
+                            const dy = f2.y - f1.y;
+                            const distance = Math.sqrt(dx * dx + dy * dy);
+                            
+                            if (distance > 0) {
+                                const nx = dx / distance;
+                                const ny = dy / distance;
+                                
+                                const overlap = f1.radius + f2.radius - distance;
+                                f1.x -= nx * overlap * 0.5;
+                                f1.y -= ny * overlap * 0.5;
+                                f2.x += nx * overlap * 0.5;
+                                f2.y += ny * overlap * 0.5;
+                                
+                                if (!f1.isStatic) {
+                                    f1.vx += nx * 2;
+                                    f1.vy += ny * 2;
+                                }
+                                if (!f2.isStatic) {
+                                    f2.vx -= nx * 2;
+                                    f2.vy -= ny * 2;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        // 检查游戏结束
+        function checkGameOver() {
+            for (const fruit of gameState.fruits) {
+                if (fruit.isStatic && fruit.y - fruit.radius < config.dangerLine) {
+                    return true;
+                }
+            }
+            return false;
+        }
+        
+        // 生成新水果
+        function spawnFruit() {
+            if (gameState.currentFruit || gameState.gameOver) return;
+            
+            const level = Math.floor(Math.random() * 3); // 前 3 种水果
+            gameState.currentFruit = new Fruit(gameState.mouseX, 50, level, false);
+        }
+        
+        // 投下水果
+        function dropFruit() {
+            if (gameState.currentFruit && !gameState.currentFruit.isStatic) {
+                gameState.currentFruit.isStatic = false;
+                gameState.currentFruit = null;
+            }
+        }
+        
+        // 鼠标/触摸事件
+        canvas.addEventListener('mousemove', (e) => {
+            if (gameState.gameOver) return;
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            gameState.mouseX = (e.clientX - rect.left) * scaleX;
+            gameState.mouseX = Math.max(30, Math.min(config.width - 30, gameState.mouseX));
+        });
+        
+        canvas.addEventListener('touchmove', (e) => {
+            if (gameState.gameOver) return;
+            e.preventDefault();
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            gameState.mouseX = (e.touches[0].clientX - rect.left) * scaleX;
+            gameState.mouseX = Math.max(30, Math.min(config.width - 30, gameState.mouseX));
+        }, { passive: false });
+        
+        canvas.addEventListener('click', () => {
+            if (gameState.gameOver) return;
+            dropFruit();
+        });
+        
+        canvas.addEventListener('touchend', () => {
+            if (gameState.gameOver) return;
+            dropFruit();
+        });
+        
+        // 键盘控制
+        document.addEventListener('keydown', (e) => {
+            if (gameState.gameOver) return;
+            if (e.key === 'ArrowLeft') {
+                gameState.mouseX = Math.max(30, gameState.mouseX - 30);
+            } else if (e.key === 'ArrowRight') {
+                gameState.mouseX = Math.min(config.width - 30, gameState.mouseX + 30);
+            } else if (e.key === ' ') {
+                dropFruit();
+            }
+        });
+        
+        // 游戏主循环
+        function gameLoop() {
+            // 清空画布
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // 绘制危险线
+            ctx.strokeStyle = 'rgba(255, 0, 0, 0.5)';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([10, 5]);
+            ctx.beginPath();
+            ctx.moveTo(0, config.dangerLine);
+            ctx.lineTo(config.width, config.dangerLine);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            
+            // 更新和绘制所有水果
+            gameState.fruits.forEach(fruit => {
+                fruit.update();
+                fruit.draw();
+            });
+            
+            // 绘制当前水果
+            if (gameState.currentFruit && !gameState.currentFruit.isStatic) {
+                gameState.currentFruit.x = gameState.mouseX;
+                gameState.currentFruit.y = 50;
+                gameState.currentFruit.draw();
+            }
+            
+            // 处理碰撞
+            handleCollisions();
+            
+            // 清理被标记的水果
+            gameState.fruits = gameState.fruits.filter(f => !f.markedForRemoval);
+            
+            // 更新和绘制粒子
+            gameState.particles.forEach((p, i) => {
+                p.update();
+                p.draw();
+                if (p.life <= 0) gameState.particles.splice(i, 1);
+            });
+            
+            // 检查游戏结束
+            if (checkGameOver()) {
+                gameState.gameOver = true;
+                document.getElementById('finalScore').textContent = gameState.score;
+                document.getElementById('gameOver').classList.add('show');
+            }
+            
+            // 自动生成新水果
+            if (gameState.fruits.length > 0 && !gameState.currentFruit) {
+                const lastFruit = gameState.fruits[gameState.fruits.length - 1];
+                if (lastFruit.isStatic) {
+                    spawnFruit();
+                }
+            } else if (gameState.fruits.length === 0 && !gameState.currentFruit) {
+                spawnFruit();
+            }
+            
+            requestAnimationFrame(gameLoop);
+        }
+        
+        // 重新开始游戏
+        function restartGame() {
+            gameState.fruits = [];
+            gameState.currentFruit = null;
+            gameState.score = 0;
+            gameState.gameOver = false;
+            gameState.particles = [];
+            document.getElementById('gameOver').classList.remove('show');
+            updateDisplay();
+            spawnFruit();
+        }
+        
+        // 信息显示
+        function showInfo() {
+            document.getElementById('infoModal').classList.add('show');
+        }
+        
+        function hideInfo() {
+            document.getElementById('infoModal').classList.remove('show');
+        }
+        
+        // 启动游戏
+        spawnFruit();
+        gameLoop();
+    </script>
+</body>
+</html>
