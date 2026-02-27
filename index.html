@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>合成大西瓜 v1.2.0</title>
+    <title>合成大西瓜 v1.3.0</title>
     <style>
         * {
             margin: 0;
@@ -203,7 +203,7 @@
     <div class="modal" id="infoModal">
         <div class="modal-content">
             <h2>🎮 合成大西瓜</h2>
-            <p><strong>版本：</strong>v1.2.0</p>
+            <p><strong>版本：</strong>v1.3.0</p>
             <p><strong>更新时间：</strong>2026-02-27</p>
             
             <h3 style="margin-top: 15px;">📖 游戏规则</h3>
@@ -216,6 +216,7 @@
             
             <h3>🔧 更新日志</h3>
             <ul>
+                <li>v1.3.0：彻底修复水果超出画布问题（碰撞后强制边界修正）</li>
                 <li>v1.2.0：修复水果超出画布问题，优化边界检测</li>
                 <li>v1.1.0：修复移动端触摸问题，优化水果掉落逻辑</li>
                 <li>v1.0.0：初始版本发布</li>
@@ -463,6 +464,31 @@
                     }
                 }
             }
+            
+            // 碰撞后强制修正所有水果位置到画布内
+            gameState.fruits.forEach(fruit => {
+                const r = fruit.radius;
+                // 左边界
+                if (fruit.x - r < 0) {
+                    fruit.x = r;
+                    fruit.vx = 0;
+                }
+                // 右边界
+                if (fruit.x + r > config.width) {
+                    fruit.x = config.width - r;
+                    fruit.vx = 0;
+                }
+                // 上边界
+                if (fruit.y - r < 0) {
+                    fruit.y = r;
+                    fruit.vy = 0;
+                }
+                // 下边界
+                if (fruit.y + r > config.height) {
+                    fruit.y = config.height - r;
+                    fruit.vy = 0;
+                }
+            });
         }
         
         // 检查游戏结束
@@ -550,6 +576,26 @@
             // 更新和绘制所有水果
             gameState.fruits.forEach(fruit => {
                 fruit.update();
+                
+                // 每次更新后强制修正位置到画布内
+                const r = fruit.radius;
+                if (fruit.x - r < 0) {
+                    fruit.x = r;
+                    fruit.vx = 0;
+                }
+                if (fruit.x + r > config.width) {
+                    fruit.x = config.width - r;
+                    fruit.vx = 0;
+                }
+                if (fruit.y - r < 0) {
+                    fruit.y = r;
+                    fruit.vy = 0;
+                }
+                if (fruit.y + r > config.height) {
+                    fruit.y = config.height - r;
+                    fruit.vy = 0;
+                }
+                
                 fruit.draw();
             });
             
