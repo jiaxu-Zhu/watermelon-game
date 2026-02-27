@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>合成大西瓜 v1.0.0</title>
+    <title>合成大西瓜 v1.1.0</title>
     <style>
         * {
             margin: 0;
@@ -203,7 +203,7 @@
     <div class="modal" id="infoModal">
         <div class="modal-content">
             <h2>🎮 合成大西瓜</h2>
-            <p><strong>版本：</strong>v1.0.0</p>
+            <p><strong>版本：</strong>v1.1.0</p>
             <p><strong>更新时间：</strong>2026-02-27</p>
             
             <h3 style="margin-top: 15px;">📖 游戏规则</h3>
@@ -212,6 +212,12 @@
                 <li>相同水果碰撞会合成更大的水果</li>
                 <li>目标是合成最大的西瓜🍉</li>
                 <li>水果堆到红线以上游戏结束</li>
+            </ul>
+            
+            <h3>🔧 更新日志</h3>
+            <ul>
+                <li>v1.1.0：修复移动端触摸问题，优化水果掉落逻辑</li>
+                <li>v1.0.0：初始版本发布</li>
             </ul>
             
             <h3>🍇 水果等级</h3>
@@ -293,14 +299,14 @@
         
         // 水果类
         class Fruit {
-            constructor(x, y, level, isStatic = true) {
+            constructor(x, y, level, waiting = true) {
                 this.x = x;
                 this.y = y;
                 this.level = level;
                 this.radius = fruits[level].radius;
                 this.vx = 0;
                 this.vy = 0;
-                this.isStatic = isStatic;
+                this.waiting = waiting;  // 是否在等待投下状态（跟随手指）
                 this.markedForRemoval = false;
             }
             
@@ -318,7 +324,7 @@
             }
             
             update() {
-                if (!this.isStatic) {
+                if (!this.waiting) {  // 只有不在等待状态时才应用物理
                     this.vy += config.gravity;
                     this.vx *= config.friction;
                     this.vy *= config.friction;
@@ -339,8 +345,8 @@
                     if (this.y + this.radius > config.height) {
                         this.y = config.height - this.radius;
                         this.vy *= -config.bounce;
-                        if (Math.abs(this.vy) < 1) {
-                            this.isStatic = true;
+                        if (Math.abs(this.vy) < 0.5) {
+                            this.waiting = true;  // 速度足够小就停止
                         }
                     }
                 }
@@ -449,7 +455,7 @@
         // 检查游戏结束
         function checkGameOver() {
             for (const fruit of gameState.fruits) {
-                if (fruit.isStatic && fruit.y - fruit.radius < config.dangerLine) {
+                if (fruit.waiting && fruit.y - fruit.radius < config.dangerLine) {
                     return true;
                 }
             }
@@ -461,13 +467,14 @@
             if (gameState.currentFruit || gameState.gameOver) return;
             
             const level = Math.floor(Math.random() * 3); // 前 3 种水果
-            gameState.currentFruit = new Fruit(gameState.mouseX, 50, level, false);
+            gameState.currentFruit = new Fruit(gameState.mouseX, 50, level, true);  // waiting = true
         }
         
         // 投下水果
         function dropFruit() {
-            if (gameState.currentFruit && !gameState.currentFruit.isStatic) {
-                gameState.currentFruit.isStatic = false;
+            if (gameState.currentFruit && gameState.currentFruit.waiting) {
+                gameState.currentFruit.waiting = false;  // 开始下落
+                gameState.fruits.push(gameState.currentFruit);  // 加入水果列表
                 gameState.currentFruit = null;
             }
         }
@@ -533,8 +540,8 @@
                 fruit.draw();
             });
             
-            // 绘制当前水果
-            if (gameState.currentFruit && !gameState.currentFruit.isStatic) {
+            // 绘制当前等待投下的水果
+            if (gameState.currentFruit && gameState.currentFruit.waiting) {
                 gameState.currentFruit.x = gameState.mouseX;
                 gameState.currentFruit.y = 50;
                 gameState.currentFruit.draw();
@@ -560,14 +567,12 @@
                 document.getElementById('gameOver').classList.add('show');
             }
             
-            // 自动生成新水果
-            if (gameState.fruits.length > 0 && !gameState.currentFruit) {
-                const lastFruit = gameState.fruits[gameState.fruits.length - 1];
-                if (lastFruit.isStatic) {
+            // 自动生成新水果（当所有水果都静止时）
+            if (!gameState.currentFruit && !gameState.gameOver) {
+                const hasMovingFruit = gameState.fruits.some(f => !f.waiting);
+                if (!hasMovingFruit) {
                     spawnFruit();
                 }
-            } else if (gameState.fruits.length === 0 && !gameState.currentFruit) {
-                spawnFruit();
             }
             
             requestAnimationFrame(gameLoop);
